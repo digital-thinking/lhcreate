@@ -1,4 +1,5 @@
 import RPi.GPIO as GPIO
+from time import sleep
 
 class HardwareControls:
     def __init__(self, config):
@@ -6,15 +7,18 @@ class HardwareControls:
         self.debugCollision = 0        
     def releaseBall(self):        
         p = GPIO.PWM(self.config['servo1'], 50)    # create an object p for PWM on port 25 at 50 Hertz  
-        p.start(50)             # start the PWM on 50 percent duty cycle  
-                                # duty cycle value can be 0.0 to 100.0%, floats are OK  
-          
-        p.ChangeDutyCycle(50)   # change the duty cycle to 90%  
-          
-        p.ChangeFrequency(100)  # change the frequency to 100 Hz (floats also work)  
-                                # e.g. 100.5, 5.2  
-          
-        p.stop()              
+        pwm=GPIO.PWM(12,50)
+        pwm.start(3.75)
+        sleep(3)
+
+        DesiredAngle = 90
+        ##DutyCycle = 1/18* (DesiredAngle) + 2
+        pwm.ChangeDutyCycle(7.5)
+        sleep(3)
+
+        DesiredAngle = 180
+        pwm.ChangeDutyCycle(11.25)
+           
                 
     def isOnlyButtonA(self):
         return GPIO.input(self.config['buttonA']) == False and GPIO.input(self.config['buttonB']) == True
