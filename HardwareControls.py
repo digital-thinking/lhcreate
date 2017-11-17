@@ -1,23 +1,24 @@
 import RPi.GPIO as GPIO
 from time import sleep
+from random import randint
 
 class HardwareControls:
     def __init__(self, config):
         self.config = config
         self.debugCollision = 0        
     def releaseBall(self):        
-        p = GPIO.PWM(self.config['servo1'], 50)    # create an object p for PWM on port 25 at 50 Hertz  
-        pwm=GPIO.PWM(12,50)
+        pwm = GPIO.PWM(self.config['servo1'], 50)
         pwm.start(3.75)
         sleep(3)
 
-        DesiredAngle = 90
-        ##DutyCycle = 1/18* (DesiredAngle) + 2
-        pwm.ChangeDutyCycle(7.5)
+        desiredAngle = 90
+        dutyCycle = desiredAngle/24 + 3.75
+        pwm.ChangeDutyCycle(dutyCycle)
         sleep(3)
 
-        DesiredAngle = 180
-        pwm.ChangeDutyCycle(11.25)
+        desiredAngle = 180
+        dutyCycle = desiredAngle/24 + 3.75
+        pwm.ChangeDutyCycle(dutyCycle)
            
                 
     def isOnlyButtonA(self):
