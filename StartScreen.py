@@ -1,36 +1,30 @@
 import pygame
-import RPi.GPIO as GPIO
 import os
+from HardwareControls import HardwareControls
 
-BLOCK_BUTTON_TIME = 30
+BLOCK_BUTTON_TIME = 10
 GAME_OVER_TIME = 60 * 5
+DELAY = 10
 
 class StartScreen:    
-    def __init__(self):
+    def __init__(self, config):        
         self.data = []
-        self.image = pygame.image.load('screens/screen1.png')
-        self.score = 0
+        self.hardwareControls = HardwareControls(config)
+        self.config = config
+        self.collisions = [False, False, False, False]
         self.state = State1()
         self.buttonBlockCounter = BLOCK_BUTTON_TIME
         self.gameOverCounter = GAME_OVER_TIME
-  
-    def setImage(self, imagepath):
-        self.image = pygame.image.load(imagepath)
-    
+        
     def reset(self):
-        self.score = 0
+        self.collisions = [False, False, False, False]
         self.state = State1()
         self.buttonBlockCounter = BLOCK_BUTTON_TIME
         self.gameOverCounter = GAME_OVER_TIME
     
-    def render(self, config, screen):        
-        imagerect = self.image.get_rect()          
-        
-        screen.blit(self.image, imagerect)
-        
-        text_surface = config['font_big'].render('%d'%config['buttonA'], True, config['color_white'])            
-        rect = text_surface.get_rect(center=(160,120))                   
-        screen.blit(text_surface, rect)
+    def render(self, screen):        
+        imagerect = self.state.getImage().get_rect()       
+        screen.blit(self.state.getImage(), imagerect)   
         
         #Game over counter
         if (self.gameOverCounter == 0):
@@ -40,55 +34,86 @@ class StartScreen:
         
         #Block button counter
         if (self.buttonBlockCounter == 0):            
-            if GPIO.input(config['buttonA']) == False and GPIO.input(config['buttonB']) == True:            
+            if self.hardwareControls.isOnlyButtonA():
                 self.state.onButtonA(self)
                 self.buttonBlockCounter = BLOCK_BUTTON_TIME
             
-            if GPIO.input(config['buttonB']) == False and GPIO.input(config['buttonA']) == True:            
+            if self.hardwareControls.isOnlyButtonB():
                 self.state.onButtonB(self)
                 self.buttonBlockCounter = BLOCK_BUTTON_TIME
             
-            if GPIO.input(config['buttonB']) == False and GPIO.input(config['buttonA']) == False:            
+            if self.hardwareControls.isBothButtons():          
                 self.state.onBothButtons(self)
                 self.buttonBlockCounter = BLOCK_BUTTON_TIME
         else:
             self.buttonBlockCounter -= 1
+       
+        if (self.hardwareControls.getCollision() > 0):
+            self.state.handleCollision(self, self.hardwareControls.getCollision())
             
-            
-        
-        print (self.gameOverCounter)
+        self.state.act(self)        
+        if (self.collisions[0] and self.collisions[1] and self.collisions[2] and self.collisions[3]):
+            print ('game success')
+            self.state = WinState()
+
+        progressBar = pygame.Surface((1280 * self.gameOverCounter / GAME_OVER_TIME, 100))      
+        progressBar.fill((200,0,0))
+        screen.blit(progressBar ,pygame.Rect(0,0,0,0))        
+
         pygame.display.update()
         
     def setState(self, state):
+        print (state)
         self.state = state
-        
-class State1:
-    def onButtonA(self, screen):
-        print('State1A')
-        screen.setState(State2())
-        screen.setImage('screens/screen2.png')         
-    
-    def onButtonB(self, screen):
-        print('State1B')
-        screen.setState(State2())
-        screen.setImage('screens/screen2.png')
-        
-    def onBothButtons(self, screen):
-        print('State1Both')
 
-class State2:
-    def onButtonA(self, screen):
-        print('State2A')
-        screen.setState(State1())
+class NothingState():
+    def onButtonA(self, screen):      
+        print('A - Do nothing')
     
-    def onButtonB(self, screen):
-        print('State2B')
-        screen.setState(State1())
+    def onButtonB(self, screen):       
+        print('B - Do nothing')
         
     def onBothButtons(self, screen):
-        print('State2Both')
+        print('Both - Do nothing')
+       
+    def getImage(self):
+        return pygame.image.load('screens/screen1.png')
+    
+    def handleCollision(self, screen, number):
+        print('Collision - Do nothing')
         
-class GameOverState:
+    def act(self, screen):
+        pass
+        
+
+class State1(NothingState):        
+    def onBothButtons(self, screen):
+        print('Start Game')        
+        screen.setState(State2())
+        screen.hardwareControls.releaseBall()
+        
+class DelayedState(NothingState):
+    def __init__(self, steps, nextState):
+        self.counter = steps
+        self.nextState = nextState
+        
+    def act(self, screen):
+        self.counter -= 1
+        if (self.counter == 0):
+            screen.setState(self.nextState)
+        pass
+        
+
+class State2(NothingState):    
+    def getImage(self):
+        return pygame.image.load('screens/screen2.png')
+    
+    def handleCollision(self, screen, number):
+        screen.collisions[number-1] = True
+        screen.setState(DelayedState(DELAY, State1()))
+        print('Collided: ' + str(number))
+        
+class GameOverState(NothingState):
     def onButtonA(self, screen):
         print('Game Over')        
     
@@ -98,5 +123,20 @@ class GameOverState:
     def onBothButtons(self, screen):
         screen.reset()
         
+    def getImage(self):
+        return pygame.image.load('screens/screen_go.png')
     
+        
+class WinState(NothingState):
+    def onButtonA(self, screen):
+        print('Game Over')        
+    
+    def onButtonB(self, screen):
+        print('Game Over')        
+        
+    def onBothButtons(self, screen):
+        screen.reset()
+        
+    def getImage(self):
+        return pygame.image.load('screens/screen_win.png')     
             
