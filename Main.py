@@ -11,6 +11,7 @@ config['collisionA'] = 26
 config['collisionB'] = 19
 config['collisionC'] = 23
 config['collisionD'] = 24
+
 config['servo1'] = 12
 
 #config button
